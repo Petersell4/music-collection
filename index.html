@@ -3,66 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Music Collection Manager</title>
-    <!-- Load Bootstrap for responsive layout -->
+    <title>Music Collection</title>
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Load PapaParse for CSV loading/writing -->
+    <!-- PapaParse CSV Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
-        body { padding: 12px; background-color: #f8f9fa; }
-        .table-container { 
+        body { 
+            background-color: #f8f9fa; 
+            padding-bottom: 30px;
+        }
+        .main-card { 
             background: white; 
-            padding: 12px; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.08); 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            padding: 20px;
         }
-        /* Touch-friendly scrolling and sticky table headers */
-        .table-responsive { 
-            max-height: 70vh; 
-            overflow-y: auto; 
-            -webkit-overflow-scrolling: touch; 
-        }
-        thead th { 
-            position: sticky; 
-            top: 0; 
-            background-color: #212529 !important; 
-            color: white; 
-            z-index: 2; 
-            white-space: nowrap;
-        }
-        /* Mobile tap targets and sizing */
-        td[contenteditable="true"] { 
-            min-width: 120px; 
-            padding: 10px 8px !important; 
-            vertical-align: middle; 
-            font-size: 15px;
-        }
-        td[contenteditable="true"]:focus { 
-            background-color: #e7f1ff; 
-            outline: 2px solid #0d6efd; 
-            border-radius: 4px;
+
+        /* --- Mobile Card View Transformation --- */
+        @media (max-width: 768px) {
+            /* Force table structure into block layout on mobile */
+            .responsive-table table, 
+            .responsive-table thead, 
+            .responsive-table tbody, 
+            .responsive-table th, 
+            .responsive-table td, 
+            .responsive-table tr { 
+                display: block; 
+            }
+
+            /* Hide original desktop headers */
+            .responsive-table thead {
+                display: none;
+            }
+
+            /* Style each row as a standalone card */
+            .responsive-table tr {
+                margin-bottom: 16px;
+                background: #ffffff;
+                border: 1px solid #e0e0e0 !important;
+                border-radius: 10px;
+                padding: 12px 16px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            }
+
+            /* Format cells into key-value pairs */
+            .responsive-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px 0 !important;
+                border: none !important;
+                border-bottom: 1px solid #f1f1f1 !important;
+                text-align: right;
+                word-break: break-word;
+            }
+
+            .responsive-table td:last-child {
+                border-bottom: none !important;
+            }
+
+            /* Display column header labels dynamically on mobile */
+            .responsive-table td::before {
+                content: attr(data-label);
+                font-weight: 700;
+                text-transform: uppercase;
+                font-size: 0.75rem;
+                color: #6c757d;
+                text-align: left;
+                padding-right: 15px;
+                flex-shrink: 0;
+            }
+
+            /* Make primary information stand out */
+            .responsive-table td[data-label="Artist"] {
+                font-size: 1.1rem;
+                font-weight: bold;
+                color: #0d6efd;
+            }
+            .responsive-table td[data-label="Album"] {
+                font-weight: 600;
+            }
         }
     </style>
 </head>
 <body>
 
-<div class="container-fluid px-2 px-md-3 py-2">
-    <h3 class="mb-3 text-center text-md-start">Music Collection Manager</h3>
-    
-    <!-- Mobile-optimized controls -->
-    <div class="row g-2 mb-3">
-        <div class="col-12 col-md-8">
-            <input type="text" class="form-control form-control-lg" id="searchInput" placeholder="Search collection..." disabled>
+<div class="container my-3 my-md-4">
+    <div class="main-card">
+        <h3 class="fw-bold mb-3 text-center text-md-start">Music Collection</h3>
+        
+        <!-- Search Field -->
+        <div class="mb-3">
+            <input type="text" class="form-control form-control-lg" id="searchInput" placeholder="Search by artist, album, label..." disabled>
         </div>
-        <div class="col-12 col-md-4">
-            <button class="btn btn-success btn-lg w-100" id="exportBtn" disabled>Save & Download CSV</button>
-        </div>
-    </div>
 
-    <div class="table-container p-2 p-md-3">
-        <div class="table-responsive">
-            <table class="table table-bordered table-hover mb-0" id="musicTable">
-                <thead>
+        <!-- Table / Mobile Card Container -->
+        <div class="responsive-table">
+            <table class="table table-hover align-middle mb-0" id="musicTable">
+                <thead class="table-dark">
                     <tr>
                         <th>Artist</th>
                         <th>Album</th>
@@ -77,7 +116,7 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td colspan="9" class="text-center text-muted" id="statusMessage">Loading music collection...</td>
+                        <td colspan="9" class="text-center text-muted py-4" id="statusMessage">Loading music collection...</td>
                     </tr>
                 </tbody>
             </table>
@@ -86,52 +125,53 @@
 </div>
 
 <script>
-    let musicData = [];
-    const expectedHeaders = ["Artist", "Album", "Label", "Year", "Catalogue", "Country", "Link", "Qty", "Format"];
     const csvUrl = "https://raw.githubusercontent.com/Petersell4/music-collection/refs/heads/main/music.csv";
+    const expectedHeaders = ["Artist", "Album", "Label", "Year", "Catalogue", "Country", "Link", "Qty", "Format"];
 
     const searchInput = document.getElementById('searchInput');
-    const exportBtn = document.getElementById('exportBtn');
     const tbody = document.querySelector('#musicTable tbody');
 
-    // 1. Automatically fetch music.csv from raw GitHub link
+    // 1. Fetch CSV from GitHub Raw
     document.addEventListener("DOMContentLoaded", function() {
         Papa.parse(csvUrl, {
             download: true,
             header: true,
             skipEmptyLines: true,
             complete: function(results) {
-                musicData = results.data;
-                renderTable(musicData);
+                renderTable(results.data);
                 searchInput.disabled = false;
-                exportBtn.disabled = false;
             },
             error: function(err) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Error loading CSV file. Details: ${err.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">Error loading CSV file. Details: ${err.message}</td></tr>`;
             }
         });
     });
 
-    // 2. Render mobile-friendly inline editing rows
+    // 2. Render Read-Only Mobile Responsive View
     function renderTable(data) {
         tbody.innerHTML = ''; 
 
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center">No data found in music.csv.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4">No data found in collection.</td></tr>';
             return;
         }
 
-        data.forEach((row, rowIndex) => {
+        data.forEach(row => {
             const tr = document.createElement('tr');
             
             expectedHeaders.forEach(header => {
                 const td = document.createElement('td');
-                td.textContent = row[header] || ''; 
-                td.contentEditable = true; 
-                
-                td.addEventListener('blur', function() {
-                    musicData[rowIndex][header] = this.textContent;
-                });
+                const val = row[header] ? row[header].trim() : '';
+
+                // Attach header label for mobile CSS
+                td.setAttribute('data-label', header);
+
+                // Format web links as clickable anchors
+                if (header === "Link" && val.startsWith("http")) {
+                    td.innerHTML = `<a href="${val}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary py-0 px-2">Open Link</a>`;
+                } else {
+                    td.textContent = val || '-';
+                }
                 
                 tr.appendChild(td);
             });
@@ -139,7 +179,7 @@
         });
     }
 
-    // 3. Instant search filtering
+    // 3. Real-time Search Filtering
     searchInput.addEventListener('keyup', function() {
         const searchTerm = this.value.toLowerCase();
         const rows = tbody.querySelectorAll('tr');
@@ -148,23 +188,6 @@
             const rowText = row.textContent.toLowerCase();
             row.style.display = rowText.includes(searchTerm) ? '' : 'none';
         });
-    });
-
-    // 4. Download updated CSV
-    exportBtn.addEventListener('click', function() {
-        if (musicData.length === 0) return;
-
-        const csvString = Papa.unparse(musicData, { columns: expectedHeaders });
-        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", "music.csv");
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
     });
 </script>
 </body>
