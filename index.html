@@ -4,199 +4,100 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Music Collection Manager</title>
+    <!-- Load Bootstrap for responsive layout -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Load PapaParse for CSV loading/writing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
-        body { padding: 20px; background-color: #f8f9fa; }
-        .table-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 20px; overflow-x: auto;}
-        td[contenteditable="true"]:hover { background-color: #e9ecef; cursor: text; outline: 1px dashed #0d6efd; }
-        td[contenteditable="true"]:focus { background-color: #fff; outline: 2px solid #0d6efd; }
-    </style>
-</head>
-<body>
-
-<div class="container-fluid">
-    <h2 class="mb-4">Music Collection Manager</h2>
-    
-    <div class="row mb-3 align-items-center">
-        <div class="col-md-4 mb-2 mb-md-0">
-            <input type="file" class="form-control" id="csvFileInput" accept=".csv">
-        </div>
-        <div class="col-md-4 mb-2 mb-md-0">
-            <input type="text" class="form-control" id="searchInput" placeholder="Search collection..." disabled>
-        </div>
-        <div class="col-md-4 text-md-end">
-            <button class="btn btn-success" id="exportBtn" disabled>Save & Download CSV</button>
-        </div>
-    </div>
-
-    <div class="table-container">
-        <table class="table table-bordered table-hover" id="musicTable">
-            <thead class="table-dark">
-                <tr>
-                    <th>Artist</th>
-                    <th>Album</th>
-                    <th>Label</th>
-                    <th>Year</th>
-                    <th>Catalogue</th>
-                    <th>Country</th>
-                    <th>Link</th>
-                    <th>Qty</th>
-                    <th>Format</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td colspan="9" class="text-center text-muted">Please load a CSV file to view and edit your collection.</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<script>
-    let musicData = [];
-    const expectedHeaders = ["Artist", "Album", "Label", "Year", "Catalogue", "Country", "Link", "Qty", "Format"];
-
-    const fileInput = document.getElementById('csvFileInput');
-    const searchInput = document.getElementById('searchInput');
-    const exportBtn = document.getElementById('exportBtn');
-    const tbody = document.querySelector('#musicTable tbody');
-
-    // 1. Handle File Upload and Parse CSV
-    fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: function(results) {
-                musicData = results.data;
-                renderTable(musicData);
-                searchInput.disabled = false;
-                exportBtn.disabled = false;
-            },
-            error: function(err) {
-                alert("Error reading CSV: " + err.message);
-            }
-        });
-    });
-
-    // 2. Render Table and Enable Inline Editing
-    function renderTable(data) {
-        tbody.innerHTML = ''; 
-
-        if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center">No data found in the CSV.</td></tr>';
-            return;
+        body { padding: 12px; background-color: #f8f9fa; }
+        .table-container { 
+            background: white; 
+            padding: 12px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08); 
         }
-
-        data.forEach((row, rowIndex) => {
-            const tr = document.createElement('tr');
-            
-            expectedHeaders.forEach(header => {
-                const td = document.createElement('td');
-                // Use the data if it exists, otherwise empty string
-                td.textContent = row[header] || ''; 
-                td.contentEditable = true; // Makes the cell editable
-                
-                // Update the underlying array when the user clicks out of a cell
-                td.addEventListener('blur', function() {
-                    musicData[rowIndex][header] = this.textContent;
-                });
-                
-                tr.appendChild(td);
-            });
-            tbody.appendChild(tr);
-        });
-    }
-
-    // 3. Handle Search Functionality
-    searchInput.addEventListener('keyup', function() {
-        const searchTerm = this.value.toLowerCase();
-        const rows = tbody.querySelectorAll('tr');
-
-        rows.forEach(row => {
-            // Get all text from the row
-            const rowText = row.textContent.toLowerCase();
-            // Show or hide based on whether it matches the search term
-            if (rowText.includes(searchTerm)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-    });
-
-    // 4. Export Updated Data to CSV
-    exportBtn.addEventListener('click', function() {
-        if (musicData.length === 0) {<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Music Collection Manager</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <style>
-        body { padding: 20px; background-color: #f8f9fa; }
-        .table-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 20px; overflow-x: auto;}
-        td[contenteditable="true"]:hover { background-color: #e9ecef; cursor: text; outline: 1px dashed #0d6efd; }
-        td[contenteditable="true"]:focus { background-color: #fff; outline: 2px solid #0d6efd; }
+        /* Touch-friendly scrolling and sticky table headers */
+        .table-responsive { 
+            max-height: 70vh; 
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch; 
+        }
+        thead th { 
+            position: sticky; 
+            top: 0; 
+            background-color: #212529 !important; 
+            color: white; 
+            z-index: 2; 
+            white-space: nowrap;
+        }
+        /* Mobile tap targets and sizing */
+        td[contenteditable="true"] { 
+            min-width: 120px; 
+            padding: 10px 8px !important; 
+            vertical-align: middle; 
+            font-size: 15px;
+        }
+        td[contenteditable="true"]:focus { 
+            background-color: #e7f1ff; 
+            outline: 2px solid #0d6efd; 
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
 
-<div class="container-fluid">
-    <h2 class="mb-4">Music Collection Manager</h2>
+<div class="container-fluid px-2 px-md-3 py-2">
+    <h3 class="mb-3 text-center text-md-start">Music Collection Manager</h3>
     
-    <div class="row mb-3 align-items-center">
-        <div class="col-md-6 mb-2 mb-md-0">
-            <input type="text" class="form-control" id="searchInput" placeholder="Search collection..." disabled>
+    <!-- Mobile-optimized controls -->
+    <div class="row g-2 mb-3">
+        <div class="col-12 col-md-8">
+            <input type="text" class="form-control form-control-lg" id="searchInput" placeholder="Search collection..." disabled>
         </div>
-        <div class="col-md-6 text-md-end">
-            <button class="btn btn-success" id="exportBtn" disabled>Save & Download CSV</button>
+        <div class="col-12 col-md-4">
+            <button class="btn btn-success btn-lg w-100" id="exportBtn" disabled>Save & Download CSV</button>
         </div>
     </div>
 
-    <div class="table-container">
-        <table class="table table-bordered table-hover" id="musicTable">
-            <thead class="table-dark">
-                <tr>
-                    <th>Artist</th>
-                    <th>Album</th>
-                    <th>Label</th>
-                    <th>Year</th>
-                    <th>Catalogue</th>
-                    <th>Country</th>
-                    <th>Link</th>
-                    <th>Qty</th>
-                    <th>Format</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td colspan="9" class="text-center text-muted" id="statusMessage">Loading music collection...</td>
-                </tr>
-            </tbody>
-        </table>
+    <div class="table-container p-2 p-md-3">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover mb-0" id="musicTable">
+                <thead>
+                    <tr>
+                        <th>Artist</th>
+                        <th>Album</th>
+                        <th>Label</th>
+                        <th>Year</th>
+                        <th>Catalogue</th>
+                        <th>Country</th>
+                        <th>Link</th>
+                        <th>Qty</th>
+                        <th>Format</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="9" class="text-center text-muted" id="statusMessage">Loading music collection...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
 <script>
     let musicData = [];
     const expectedHeaders = ["Artist", "Album", "Label", "Year", "Catalogue", "Country", "Link", "Qty", "Format"];
+    const csvUrl = "https://raw.githubusercontent.com/Petersell4/music-collection/refs/heads/main/music.csv";
 
     const searchInput = document.getElementById('searchInput');
     const exportBtn = document.getElementById('exportBtn');
     const tbody = document.querySelector('#musicTable tbody');
-    const statusMessage = document.getElementById('statusMessage');
 
-    // 1. Automatically load the CSV on page load
+    // 1. Automatically fetch music.csv from raw GitHub link
     document.addEventListener("DOMContentLoaded", function() {
-        Papa.parse("https://raw.githubusercontent.com/Petersell4/music-collection/refs/heads/main/music.csv", {
-            download: true, // This tells PapaParse to fetch the file via URL
+        Papa.parse(csvUrl, {
+            download: true,
             header: true,
             skipEmptyLines: true,
             complete: function(results) {
@@ -206,17 +107,17 @@
                 exportBtn.disabled = false;
             },
             error: function(err) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Error loading music.csv. Make sure the file exists in the same folder. Details: ${err.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Error loading CSV file. Details: ${err.message}</td></tr>`;
             }
         });
     });
 
-    // 2. Render Table and Enable Inline Editing
+    // 2. Render mobile-friendly inline editing rows
     function renderTable(data) {
         tbody.innerHTML = ''; 
 
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center">No data found in the CSV.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center">No data found in music.csv.</td></tr>';
             return;
         }
 
@@ -238,27 +139,20 @@
         });
     }
 
-    // 3. Handle Search Functionality
+    // 3. Instant search filtering
     searchInput.addEventListener('keyup', function() {
         const searchTerm = this.value.toLowerCase();
         const rows = tbody.querySelectorAll('tr');
 
         rows.forEach(row => {
             const rowText = row.textContent.toLowerCase();
-            if (rowText.includes(searchTerm)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+            row.style.display = rowText.includes(searchTerm) ? '' : 'none';
         });
     });
 
-    // 4. Export Updated Data to CSV
+    // 4. Download updated CSV
     exportBtn.addEventListener('click', function() {
-        if (musicData.length === 0) {
-            alert("No data to export.");
-            return;
-        }
+        if (musicData.length === 0) return;
 
         const csvString = Papa.unparse(musicData, { columns: expectedHeaders });
         const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
@@ -266,30 +160,7 @@
         
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", "music.csv"); // Downloads with the exact same name
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    });
-</script>
-</body>
-</html>
-            alert("No data to export.");
-            return;
-        }
-
-        // Convert JSON back to CSV
-        const csvString = Papa.unparse(musicData, { columns: expectedHeaders });
-        
-        // Create a downloadable blob
-        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        
-        // Create a temporary link to trigger the download
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", "updated_music_collection.csv");
+        link.setAttribute("download", "music.csv");
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
