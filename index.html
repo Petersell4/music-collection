@@ -265,24 +265,23 @@
                 td.setAttribute('data-label', header);
 
                 if (header === "Link" && val !== '') {
-                    let label = "Link";
-                    let url = val;
+                    // Extract clean URL ignoring brackets, parentheses, or markdown syntax
+                    const urlMatch = val.match(/https?:\/\/[^\s>"'\]\)]+/);
 
-                    // Option A: Custom Label via Pipe "Discogs|https://..."
-                    if (val.includes("|")) {
-                        const parts = val.split("|");
-                        label = parts[0].trim();
-                        url = parts[1].trim();
-                    } 
-                    // Option B: Smart Domain Detection for raw URLs
-                    else if (val.startsWith("http")) {
-                        if (val.includes("discogs.com")) label = "Discogs";
-                        else if (val.includes("spotify.com")) label = "Spotify";
-                        else if (val.includes("bandcamp.com")) label = "Bandcamp";
-                        else if (val.includes("youtube.com") || val.includes("youtu.be")) label = "YouTube";
-                    }
+                    if (urlMatch) {
+                        const url = urlMatch[0];
+                        let label = "Link";
 
-                    if (url.startsWith("http")) {
+                        // Check for custom label using pipe separator "Label|URL"
+                        if (val.includes("|")) {
+                            label = val.split("|")[0].trim();
+                        } 
+                        // Auto-detect domain labels
+                        else if (url.includes("discogs.com")) label = "Discogs";
+                        else if (url.includes("spotify.com")) label = "Spotify";
+                        else if (url.includes("bandcamp.com")) label = "Bandcamp";
+                        else if (url.includes("youtube.com") || url.includes("youtu.be")) label = "YouTube";
+
                         td.innerHTML = `<a href="${url}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary py-0 px-2">${label}</a>`;
                     } else {
                         td.textContent = val;
