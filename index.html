@@ -20,9 +20,27 @@
             padding: 20px;
         }
 
+        /* Sortable column header styling */
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        th.sortable:hover {
+            background-color: #343a40 !important;
+        }
+        .sort-icon {
+            font-size: 0.8rem;
+            margin-left: 4px;
+            opacity: 0.5;
+        }
+        th.active-sort .sort-icon {
+            opacity: 1;
+            color: #0d6efd;
+        }
+
         /* --- Mobile Card View Transformation --- */
         @media (max-width: 768px) {
-            /* Force table structure into block layout on mobile */
             .responsive-table table, 
             .responsive-table thead, 
             .responsive-table tbody, 
@@ -32,12 +50,10 @@
                 display: block; 
             }
 
-            /* Hide original desktop headers */
             .responsive-table thead {
                 display: none;
             }
 
-            /* Style each row as a standalone card */
             .responsive-table tr {
                 margin-bottom: 16px;
                 background: #ffffff;
@@ -47,7 +63,6 @@
                 box-shadow: 0 2px 6px rgba(0,0,0,0.04);
             }
 
-            /* Format cells into key-value pairs */
             .responsive-table td {
                 display: flex;
                 justify-content: space-between;
@@ -63,7 +78,6 @@
                 border-bottom: none !important;
             }
 
-            /* Display column header labels dynamically on mobile */
             .responsive-table td::before {
                 content: attr(data-label);
                 font-weight: 700;
@@ -75,7 +89,6 @@
                 flex-shrink: 0;
             }
 
-            /* Make primary information stand out */
             .responsive-table td[data-label="Artist"] {
                 font-size: 1.1rem;
                 font-weight: bold;
@@ -93,25 +106,32 @@
     <div class="main-card">
         <h3 class="fw-bold mb-3 text-center text-md-start">Music Collection</h3>
         
-        <!-- Search Field -->
-        <div class="mb-3">
-            <input type="text" class="form-control form-control-lg" id="searchInput" placeholder="Search by artist, album, label..." disabled>
+        <!-- Controls Header: Search + Mobile/Desktop Controls -->
+        <div class="row g-2 mb-3 align-items-center">
+            <!-- Search Bar -->
+            <div class="col-12 col-md-6">
+                <input type="text" class="form-control form-control-lg" id="searchInput" placeholder="Search by artist, album, label..." disabled>
+            </div>
+            <!-- Sort Controls (Essential for Mobile Cards) -->
+            <div class="col-12 col-md-6">
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text bg-light text-muted fs-6">Sort by</span>
+                    <select class="form-select" id="sortSelect" disabled>
+                        <!-- Populated dynamically -->
+                    </select>
+                    <button class="btn btn-outline-secondary" type="button" id="sortOrderBtn" disabled>
+                        <span id="sortOrderIcon">▲ Asc</span>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Table / Mobile Card Container -->
         <div class="responsive-table">
             <table class="table table-hover align-middle mb-0" id="musicTable">
                 <thead class="table-dark">
-                    <tr>
-                        <th>Artist</th>
-                        <th>Album</th>
-                        <th>Label</th>
-                        <th>Year</th>
-                        <th>Catalogue</th>
-                        <th>Country</th>
-                        <th>Link</th>
-                        <th>Qty</th>
-                        <th>Format</th>
+                    <tr id="tableHeaders">
+                        <!-- Populated dynamically with sortable headers -->
                     </tr>
                 </thead>
                 <tbody>
@@ -128,18 +148,77 @@
     const csvUrl = "https://raw.githubusercontent.com/Petersell4/music-collection/refs/heads/main/music.csv";
     const expectedHeaders = ["Artist", "Album", "Label", "Year", "Catalogue", "Country", "Link", "Qty", "Format"];
 
+    let musicData = [];
+    let currentSortColumn = "Artist";
+    let currentSortDirection = "asc"; // 'asc' or 'desc'
+
     const searchInput = document.getElementById('searchInput');
+    const sortSelect = document.getElementById('sortSelect');
+    const sortOrderBtn = document.getElementById('sortOrderBtn');
+    const sortOrderIcon = document.getElementById('sortOrderIcon');
+    const tableHeaders = document.getElementById('tableHeaders');
     const tbody = document.querySelector('#musicTable tbody');
 
-    // 1. Fetch CSV from GitHub Raw
+    // 1. Initialize Control Elements
+    function initControls() {
+        // Populate mobile dropdown options
+        sortSelect.innerHTML = expectedHeaders.map(h => `<option value="${h}">${h}</option>`).join('');
+        sortSelect.value = currentSortColumn;
+
+        // Render desktop header cells with click listeners
+        tableHeaders.innerHTML = expectedHeaders.map(h => `
+            <th class="sortable" data-column="${h}">
+                ${h} <span class="sort-icon" id="icon-${h}">↕</span>
+            </th>
+        `).join('');
+
+        tableHeaders.querySelectorAll('th').forEach(th => {
+            th.addEventListener('click', () => {
+                const col = th.getAttribute('data-column');
+                if (currentSortColumn === col) {
+                    currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSortColumn = col;
+                    currentSortDirection = 'asc';
+                }
+                syncAndSort();
+            });
+        });
+
+        // Dropdown selection change
+        sortSelect.addEventListener('change', (e) => {
+            currentSortColumn = e.target.value;
+            syncAndSort();
+        });
+
+        // Direction toggle button click
+        sortOrderBtn.addEventListener('click', () => {
+            currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            syncAndSort();
+        });
+
+        // Live Search Input Listener
+        searchInput.addEventListener('keyup', filterAndRender);
+    }
+
+    // 2. Fetch CSV Data from GitHub Raw
     document.addEventListener("DOMContentLoaded", function() {
+        initControls();
+
         Papa.parse(csvUrl, {
             download: true,
             header: true,
             skipEmptyLines: true,
             complete: function(results) {
-                renderTable(results.data);
+                musicData = results.data;
+                
+                // Enable search & sort controls
                 searchInput.disabled = false;
+                sortSelect.disabled = false;
+                sortOrderBtn.disabled = false;
+
+                // Execute initial sort & rendering
+                syncAndSort();
             },
             error: function(err) {
                 tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">Error loading CSV file. Details: ${err.message}</td></tr>`;
@@ -147,26 +226,73 @@
         });
     });
 
-    // 2. Render Read-Only Mobile Responsive View
-    function renderTable(data) {
-        tbody.innerHTML = ''; 
+    // 3. Perform Sort and Sync Control States
+    function syncAndSort() {
+        // Sync Dropdown & Direction Icon
+        sortSelect.value = currentSortColumn;
+        sortOrderIcon.textContent = currentSortDirection === 'asc' ? '▲ Asc' : '▼ Desc';
 
-        if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4">No data found in collection.</td></tr>';
+        // Sync Desktop Header Icons
+        expectedHeaders.forEach(h => {
+            const th = tableHeaders.querySelector(`th[data-column="${h}"]`);
+            const icon = document.getElementById(`icon-${h}`);
+            if (h === currentSortColumn) {
+                th.classList.add('active-sort');
+                icon.textContent = currentSortDirection === 'asc' ? '▲' : '▼';
+            } else {
+                th.classList.remove('active-sort');
+                icon.textContent = '↕';
+            }
+        });
+
+        // Apply Sorting Algorithm
+        musicData.sort((a, b) => {
+            let valA = a[currentSortColumn] ? a[currentSortColumn].toString().trim() : '';
+            let valB = b[currentSortColumn] ? b[currentSortColumn].toString().trim() : '';
+
+            // Handle Numeric values vs String values
+            let numA = parseFloat(valA);
+            let numB = parseFloat(valB);
+            let isNumA = !isNaN(numA) && isFinite(valA);
+            let isNumB = !isNaN(numB) && isFinite(valB);
+
+            let res = 0;
+            if (isNumA && isNumB) {
+                res = numA - numB;
+            } else {
+                res = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+            }
+
+            return currentSortDirection === 'asc' ? res : -res;
+        });
+
+        filterAndRender();
+    }
+
+    // 4. Filter Results by Search Term & Render HTML
+    function filterAndRender() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        tbody.innerHTML = '';
+
+        const filtered = musicData.filter(row => {
+            if (!searchTerm) return true;
+            return expectedHeaders.some(h => (row[h] || '').toLowerCase().includes(searchTerm));
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">No matching records found.</td></tr>';
             return;
         }
 
-        data.forEach(row => {
+        filtered.forEach(row => {
             const tr = document.createElement('tr');
             
             expectedHeaders.forEach(header => {
                 const td = document.createElement('td');
                 const val = row[header] ? row[header].trim() : '';
 
-                // Attach header label for mobile CSS
                 td.setAttribute('data-label', header);
 
-                // Format web links as clickable anchors
                 if (header === "Link" && val.startsWith("http")) {
                     td.innerHTML = `<a href="${val}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary py-0 px-2">Open Link</a>`;
                 } else {
@@ -178,17 +304,6 @@
             tbody.appendChild(tr);
         });
     }
-
-    // 3. Real-time Search Filtering
-    searchInput.addEventListener('keyup', function() {
-        const searchTerm = this.value.toLowerCase();
-        const rows = tbody.querySelectorAll('tr');
-
-        rows.forEach(row => {
-            const rowText = row.textContent.toLowerCase();
-            row.style.display = rowText.includes(searchTerm) ? '' : 'none';
-        });
-    });
 </script>
 </body>
 </html>
