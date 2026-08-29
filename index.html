@@ -195,7 +195,7 @@
 
     // 1. Automatically load the CSV on page load
     document.addEventListener("DOMContentLoaded", function() {
-        Papa.parse("music.csv", {
+        Papa.parse("https://raw.githubusercontent.com/Petersell4/music-collection/refs/heads/main/music.csv", {
             download: true, // This tells PapaParse to fetch the file via URL
             header: true,
             skipEmptyLines: true,
