@@ -106,19 +106,15 @@
     <div class="main-card">
         <h3 class="fw-bold mb-3 text-center text-md-start">Music Collection</h3>
         
-        <!-- Controls Header: Search + Mobile/Desktop Controls -->
+        <!-- Controls Header -->
         <div class="row g-2 mb-3 align-items-center">
-            <!-- Search Bar -->
             <div class="col-12 col-md-6">
                 <input type="text" class="form-control form-control-lg" id="searchInput" placeholder="Search by artist, album, label..." disabled>
             </div>
-            <!-- Sort Controls (Essential for Mobile Cards) -->
             <div class="col-12 col-md-6">
                 <div class="input-group input-group-lg">
                     <span class="input-group-text bg-light text-muted fs-6">Sort by</span>
-                    <select class="form-select" id="sortSelect" disabled>
-                        <!-- Populated dynamically -->
-                    </select>
+                    <select class="form-select" id="sortSelect" disabled></select>
                     <button class="btn btn-outline-secondary" type="button" id="sortOrderBtn" disabled>
                         <span id="sortOrderIcon">▲ Asc</span>
                     </button>
@@ -130,9 +126,7 @@
         <div class="responsive-table">
             <table class="table table-hover align-middle mb-0" id="musicTable">
                 <thead class="table-dark">
-                    <tr id="tableHeaders">
-                        <!-- Populated dynamically with sortable headers -->
-                    </tr>
+                    <tr id="tableHeaders"></tr>
                 </thead>
                 <tbody>
                     <tr>
@@ -150,7 +144,7 @@
 
     let musicData = [];
     let currentSortColumn = "Artist";
-    let currentSortDirection = "asc"; // 'asc' or 'desc'
+    let currentSortDirection = "asc";
 
     const searchInput = document.getElementById('searchInput');
     const sortSelect = document.getElementById('sortSelect');
@@ -159,13 +153,10 @@
     const tableHeaders = document.getElementById('tableHeaders');
     const tbody = document.querySelector('#musicTable tbody');
 
-    // 1. Initialize Control Elements
     function initControls() {
-        // Populate mobile dropdown options
         sortSelect.innerHTML = expectedHeaders.map(h => `<option value="${h}">${h}</option>`).join('');
         sortSelect.value = currentSortColumn;
 
-        // Render desktop header cells with click listeners
         tableHeaders.innerHTML = expectedHeaders.map(h => `
             <th class="sortable" data-column="${h}">
                 ${h} <span class="sort-icon" id="icon-${h}">↕</span>
@@ -185,23 +176,19 @@
             });
         });
 
-        // Dropdown selection change
         sortSelect.addEventListener('change', (e) => {
             currentSortColumn = e.target.value;
             syncAndSort();
         });
 
-        // Direction toggle button click
         sortOrderBtn.addEventListener('click', () => {
             currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
             syncAndSort();
         });
 
-        // Live Search Input Listener
         searchInput.addEventListener('keyup', filterAndRender);
     }
 
-    // 2. Fetch CSV Data from GitHub Raw
     document.addEventListener("DOMContentLoaded", function() {
         initControls();
 
@@ -211,13 +198,9 @@
             skipEmptyLines: true,
             complete: function(results) {
                 musicData = results.data;
-                
-                // Enable search & sort controls
                 searchInput.disabled = false;
                 sortSelect.disabled = false;
                 sortOrderBtn.disabled = false;
-
-                // Execute initial sort & rendering
                 syncAndSort();
             },
             error: function(err) {
@@ -226,13 +209,10 @@
         });
     });
 
-    // 3. Perform Sort and Sync Control States
     function syncAndSort() {
-        // Sync Dropdown & Direction Icon
         sortSelect.value = currentSortColumn;
         sortOrderIcon.textContent = currentSortDirection === 'asc' ? '▲ Asc' : '▼ Desc';
 
-        // Sync Desktop Header Icons
         expectedHeaders.forEach(h => {
             const th = tableHeaders.querySelector(`th[data-column="${h}"]`);
             const icon = document.getElementById(`icon-${h}`);
@@ -245,31 +225,22 @@
             }
         });
 
-        // Apply Sorting Algorithm
         musicData.sort((a, b) => {
             let valA = a[currentSortColumn] ? a[currentSortColumn].toString().trim() : '';
             let valB = b[currentSortColumn] ? b[currentSortColumn].toString().trim() : '';
 
-            // Handle Numeric values vs String values
             let numA = parseFloat(valA);
             let numB = parseFloat(valB);
             let isNumA = !isNaN(numA) && isFinite(valA);
             let isNumB = !isNaN(numB) && isFinite(valB);
 
-            let res = 0;
-            if (isNumA && isNumB) {
-                res = numA - numB;
-            } else {
-                res = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
-            }
-
+            let res = (isNumA && isNumB) ? numA - numB : valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
             return currentSortDirection === 'asc' ? res : -res;
         });
 
         filterAndRender();
     }
 
-    // 4. Filter Results by Search Term & Render HTML
     function filterAndRender() {
         const searchTerm = searchInput.value.toLowerCase().trim();
         tbody.innerHTML = '';
@@ -293,8 +264,29 @@
 
                 td.setAttribute('data-label', header);
 
-                if (header === "Link" && val.startsWith("http")) {
-                    td.innerHTML = `<a href="${val}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary py-0 px-2">Open Link</a>`;
+                if (header === "Link" && val !== '') {
+                    let label = "Link";
+                    let url = val;
+
+                    // Option A: Custom Label via Pipe "Discogs|https://..."
+                    if (val.includes("|")) {
+                        const parts = val.split("|");
+                        label = parts[0].trim();
+                        url = parts[1].trim();
+                    } 
+                    // Option B: Smart Domain Detection for raw URLs
+                    else if (val.startsWith("http")) {
+                        if (val.includes("discogs.com")) label = "Discogs";
+                        else if (val.includes("spotify.com")) label = "Spotify";
+                        else if (val.includes("bandcamp.com")) label = "Bandcamp";
+                        else if (val.includes("youtube.com") || val.includes("youtu.be")) label = "YouTube";
+                    }
+
+                    if (url.startsWith("http")) {
+                        td.innerHTML = `<a href="${url}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary py-0 px-2">${label}</a>`;
+                    } else {
+                        td.textContent = val;
+                    }
                 } else {
                     td.textContent = val || '-';
                 }
