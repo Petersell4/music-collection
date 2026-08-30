@@ -37,6 +37,17 @@
             color: #0d6efd;
         }
 
+        /* Interactive Format Badges */
+        .format-badge {
+            cursor: pointer;
+            transition: transform 0.15s ease, filter 0.15s ease;
+            user-select: none;
+        }
+        .format-badge:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.1);
+        }
+
         /* --- Mobile Card View Transformation --- */
         @media (max-width: 768px) {
             .responsive-table table, 
@@ -143,6 +154,7 @@
     let musicData = [];
     let currentSortColumn = "Artist";
     let currentSortDirection = "asc";
+    let selectedFormatFilter = null; // Stores currently selected format filter
 
     const searchInput = document.getElementById('searchInput');
     const sortSelect = document.getElementById('sortSelect');
@@ -209,7 +221,7 @@
         });
     });
 
-    // Render summary counters for each format
+    // Render interactive format summary counters
     function renderFormatCounters(data) {
         const counts = {};
         let totalQty = 0;
@@ -228,12 +240,33 @@
             return;
         }
 
-        let html = `<span class="badge bg-dark fs-6 py-2 px-3">Total: ${totalQty}</span>`;
+        const isTotalActive = !selectedFormatFilter;
+        let html = `<span class="badge ${isTotalActive ? 'bg-primary' : 'bg-dark'} fs-6 py-2 px-3 format-badge" data-format="ALL">Total: ${totalQty}</span>`;
+
         for (const [fmt, count] of Object.entries(counts)) {
-            html += `<span class="badge bg-secondary fs-6 py-2 px-3">${fmt}: ${count}</span>`;
+            const isActive = selectedFormatFilter === fmt;
+            const badgeClass = isActive ? 'bg-primary' : 'bg-secondary';
+            html += `<span class="badge ${badgeClass} fs-6 py-2 px-3 format-badge" data-format="${fmt}">${fmt}: ${count}</span>`;
         }
 
         formatSummary.innerHTML = html;
+
+        // Attach Click Listeners for Interactive Filtering
+        formatSummary.querySelectorAll('.format-badge').forEach(badge => {
+            badge.addEventListener('click', () => {
+                const fmt = badge.getAttribute('data-format');
+                
+                // Toggle filter off if clicked again or if "Total" is selected
+                if (fmt === 'ALL' || selectedFormatFilter === fmt) {
+                    selectedFormatFilter = null;
+                } else {
+                    selectedFormatFilter = fmt;
+                }
+
+                renderFormatCounters(data);
+                filterAndRender();
+            });
+        });
     }
 
     function syncAndSort() {
@@ -273,6 +306,13 @@
         tbody.innerHTML = '';
 
         const filtered = musicData.filter(row => {
+            // 1. Format Badge Filter
+            if (selectedFormatFilter) {
+                const rowFmt = row.Format ? row.Format.trim() : 'Unspecified';
+                if (rowFmt !== selectedFormatFilter) return false;
+            }
+
+            // 2. Search Bar Filter
             if (!searchTerm) return true;
             return expectedHeaders.some(h => (row[h] || '').toLowerCase().includes(searchTerm));
         });
